@@ -96,8 +96,19 @@ class FilterWorker(QObject):
 
         # E-value
         if args.get("check_eval"):
-            m = re.search(r"e[- ]?value[:=]?\s*([\d.eE+-]+)", header_lower)
-            if not m or not (args["min_eval"] <= float(m.group(1)) <= args["max_eval"]):
+            import math
+            m = re.search(r"e[-\s]?value[:=]?\s*([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)", header_lower)
+            if not m:
+                return False
+
+            try:
+                e_val = float(m.group(1))
+            except ValueError:
+                return False
+
+            zero = 1e-300 
+            neglog = -math.log10(max(e_val, zero))
+            if not (args["min_eval"] <= neglog <= args["max_eval"]):
                 return False
 
         # Alignment length

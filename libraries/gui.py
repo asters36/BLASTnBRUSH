@@ -242,19 +242,19 @@ class MainWindow(QMainWindow):
         self.eval_checkbox_obj.setEnabled(False)
         #------------------
         
-        self.eval_box_low = QDoubleSpinBox()
+        self.eval_box_low = QSpinBox()
         self.eval_box_low.setMaximum(900000)
         self.eval_box_low.setFixedWidth(70)
-        self.eval_box_hi = QDoubleSpinBox()
+        self.eval_box_hi = QSpinBox()
         self.eval_box_hi.setMaximum(900000)
         self.eval_box_hi.setFixedWidth(70)
         #------------------
         eval_row = QHBoxLayout()
         eval_row.addWidget(self.eval_checkbox_obj)
         eval_row.addStretch()
-        eval_row.addWidget(QLabel("MIN:"))
+        eval_row.addWidget(QLabel("10^-"))
         eval_row.addWidget(self.eval_box_low)
-        eval_row.addWidget(QLabel("MAX:"))
+        eval_row.addWidget(QLabel("10^-"))
         eval_row.addWidget(self.eval_box_hi)
         #------------------       
         self.alength_checkbox_obj = QCheckBox("Al.Length")
@@ -740,6 +740,7 @@ class MainWindow(QMainWindow):
 
     def on_genes_loaded(self, headers, lengths, al_lengths, stats, total_before, total_after):
         import time
+        import math
 
         self.genes_list.setUpdatesEnabled(False)
         self.genes_list.addItems(headers)
@@ -790,8 +791,15 @@ class MainWindow(QMainWindow):
             self.Eval_histogram_button.setEnabled(True)
             self.Eval_histogram_button2.setEnabled(True)
             self.Eval_histogram_button3.setEnabled(True)
-            self.eval_box_low.setValue(min(stats["e_values"]))
-            self.eval_box_hi.setValue(max(stats["e_values"]))
+
+            # przelicz e-values na potęgi (-log10)
+            TINY = 1e-300
+            neglogs = [-math.log10(max(e, TINY)) for e in stats["e_values"]]
+
+            # ustaw zakres w potęgach
+            self.eval_box_low.setValue(int(min(neglogs)))
+            self.eval_box_hi.setValue(int(max(neglogs)))
+
         else:
             self.eval_checkbox_obj.setEnabled(False)
 
@@ -1086,15 +1094,22 @@ class MainWindow(QMainWindow):
 
                     with open(file_name, "w", encoding="utf-8") as f:
                         for i, (header, sequence) in enumerate(c):
-                            
                             if self.s_progress.wasCanceled():
                                 break
 
                             header_stripped = header.strip()
-                            header_id = header_stripped.split()[0]
+
+                            # obcięcie nazwy do " ["
+                            cut_index = header_stripped.find(" [")
+                            if cut_index != -1:
+                                header_clean = header_stripped[:cut_index]
+                            else:
+                                header_clean = header_stripped
+
+                            header_id = header_clean.split()[0]
 
                             if header_id in selected_ids:
-                                f.write(f">{header_stripped}\n")
+                                f.write(f">{header_clean}\n")
                                 for j in range(0, len(sequence), 60):
                                     f.write(sequence[j:j+60] + "\n")
                                 matched_count += 1
